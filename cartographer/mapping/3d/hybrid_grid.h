@@ -273,9 +273,7 @@ class DynamicGrid {
   DynamicGrid& operator=(DynamicGrid&&) = default;
 
   // Returns the current number of voxels per dimension.
-  int grid_size() const {
-      std::cout << "grid size" <<  WrappedGrid::grid_size() << std::endl << std::endl;
-      return WrappedGrid::grid_size() << bits_; }
+  int grid_size() const { return WrappedGrid::grid_size() << bits_; }
 
   // Returns the value stored at 'index'.
   ValueType value(const Eigen::Array3i& index) const {
@@ -484,7 +482,7 @@ class SeparateGrowthDynamicGrid {
     std::unique_ptr<WrappedGrid>& meta_cell =
         meta_cells_[ToFlatIndex(meta_index, size_bits_)];
     if (meta_cell == nullptr) {
-      meta_cell = common::make_unique<WrappedGrid>();
+      meta_cell = absl::make_unique<WrappedGrid>();
     }
     const Eigen::Array3i inner_index =
         shifted_index - meta_index * WrappedGrid::grid_size();

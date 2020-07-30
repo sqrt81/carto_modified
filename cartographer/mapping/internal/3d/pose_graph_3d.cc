@@ -1123,7 +1123,7 @@ PoseGraphInterface::SubmapData PoseGraph3D::GetSubmapDataUnderLock(
   auto submap = it->data.submap;
   if (data_.global_submap_poses_3d.Contains(submap_id)) {
     // We already have an optimized pose.
-    return {submap, {global_submap_poses_.at(submap_id).global_pose.translation(), Eigen::Quaterniond(1, 0, 0, 0)}};
+    return {submap, data_.global_submap_poses_3d.at(submap_id).global_pose};
   }
   // We have to extrapolate.
   return {submap, ComputeLocalToGlobalTransform(data_.global_submap_poses_3d,
