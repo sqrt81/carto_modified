@@ -18,8 +18,8 @@
 #define CARTOGRAPHER_SENSOR_INTERNAL_VOXEL_FILTER_H_
 
 #include <bitset>
-#include <unordered_set>
 
+#include "absl/container/flat_hash_set.h"
 #include "cartographer/common/lua_parameter_dictionary.h"
 #include "cartographer/sensor/point_cloud.h"
 #include "cartographer/sensor/proto/adaptive_voxel_filter_options.pb.h"
@@ -46,8 +46,8 @@ class VoxelFilter {
   TimedPointCloud Filter(const TimedPointCloud& timed_point_cloud);
 
   // Same for RangeMeasurement.
-  std::vector<sensor::TimedPointCloudOriginData::RangeMeasurement> Filter(
-      const std::vector<sensor::TimedPointCloudOriginData::RangeMeasurement>&
+  std::vector<TimedPointCloudOriginData::RangeMeasurement> Filter(
+      const std::vector<TimedPointCloudOriginData::RangeMeasurement>&
           range_measurements);
 
  private:
@@ -58,7 +58,7 @@ class VoxelFilter {
   Eigen::Array3i GetCellIndex(const Eigen::Vector3f& point) const;
 
   float resolution_;
-  std::unordered_set<KeyType> voxel_set_;
+  absl::flat_hash_set<KeyType> voxel_set_;
 };
 
 proto::AdaptiveVoxelFilterOptions CreateAdaptiveVoxelFilterOptions(

@@ -64,10 +64,15 @@ class MapBuilderContext : public MapBuilderContextInterface {
                                   const std::string& sensor_id,
                                   const mapping::proto::LocalSlamResultData&
                                       local_slam_result_data) override;
+  void RegisterClientIdForTrajectory(const std::string& client_id,
+                                     int trajectory_id) override;
+  bool CheckClientIdForTrajectory(const std::string& client_id,
+                                  int trajectory_id) override;
 
  private:
   MapBuilderServer* map_builder_server_;
   mapping::SubmapController<SubmapType> submap_controller_;
+  std::map</*trajectory_id=*/int, /*client_id=*/std::string> client_ids_;
 };
 
 class MapBuilderServer : public MapBuilderServerInterface {
@@ -105,8 +110,8 @@ class MapBuilderServer : public MapBuilderServerInterface {
   void ProcessSensorDataQueue();
   void StartSlamThread();
   void OnLocalSlamResult(
-      int trajectory_id, common::Time time, transform::Rigid3d local_pose,
-      sensor::RangeData range_data,
+      int trajectory_id, const std::string client_id, common::Time time,
+      transform::Rigid3d local_pose, sensor::RangeData range_data,
       std::unique_ptr<
           const mapping::TrajectoryBuilderInterface::InsertionResult>
           insertion_result);
@@ -130,7 +135,7 @@ class MapBuilderServer : public MapBuilderServerInterface {
   std::unique_ptr<mapping::MapBuilderInterface> map_builder_;
   common::BlockingQueue<std::unique_ptr<MapBuilderContextInterface::Data>>
       incoming_data_queue_;
-  common::Mutex subscriptions_lock_;
+  absl::Mutex subscriptions_lock_;
   int current_subscription_index_ = 0;
   std::map<int /* trajectory ID */, LocalSlamResultHandlerSubscriptions>
       local_slam_subscriptions_ GUARDED_BY(subscriptions_lock_);
