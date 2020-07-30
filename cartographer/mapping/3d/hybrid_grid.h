@@ -63,7 +63,6 @@ inline Eigen::Array3i To3DIndex(const int index, const Eigen::Array3i& size_bits
   DCHECK_LT(index, 1 << size_bits.sum());
   const int mask_x = (1 << size_bits.x()) - 1;
   const int mask_y = (1 << size_bits.y()) - 1;
-  const int mask_z = (1 << size_bits.z()) - 1;
   return Eigen::Array3i(index & mask_x, (index >> size_bits.x()) & mask_y,
                         (index >> size_bits.x()) >> size_bits.y());
 }
@@ -275,7 +274,7 @@ class DynamicGrid {
 
   // Returns the current number of voxels per dimension.
   int grid_size() const {
-      std::cout << "grid size" <<  WrappedGrid::grid_size().transpose() << std::endl << std::endl;
+      std::cout << "grid size" <<  WrappedGrid::grid_size() << std::endl << std::endl;
       return WrappedGrid::grid_size() << bits_; }
 
   // Returns the value stored at 'index'.
