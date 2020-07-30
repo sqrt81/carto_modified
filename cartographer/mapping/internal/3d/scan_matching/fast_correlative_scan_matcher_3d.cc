@@ -116,7 +116,7 @@ FastCorrelativeScanMatcher3D::FastCorrelativeScanMatcher3D(
     const proto::FastCorrelativeScanMatcherOptions3D& options)
     : options_(options),
       resolution_(hybrid_grid.resolution()),
-      width_in_voxels_(hybrid_grid.grid_size()),
+      width_in_voxels_(hybrid_grid.grid_size().x()),
       precomputation_grid_stack_(
           absl::make_unique<PrecomputationGridStack3D>(hybrid_grid, options)),
       low_resolution_hybrid_grid_(low_resolution_hybrid_grid),

@@ -56,7 +56,7 @@ inline int ToFlatIndex(const Eigen::Array3i& index, const Eigen::Array3i& size_b
            && (index.x() < (1 << size_bits.x()))
            && (index.y() < (1 << size_bits.y()))
            && (index.z() < (1 << size_bits.z()))) << index;
-    return (((index.z() << size_bits.z()) + index.y()) << size_bits.y()) + index.x();
+    return (((index.z() << size_bits.y()) + index.y()) << size_bits.x()) + index.x();
   }
 
 inline Eigen::Array3i To3DIndex(const int index, const Eigen::Array3i& size_bits) {
@@ -445,7 +445,8 @@ class SeparateGrowthDynamicGrid {
     const Eigen::Array3i shifted_index = index + (grid_size() / 2);
     // The cast to unsigned is for performance to check with 3 comparisons
     // shifted_index.[xyz] >= 0 and shifted_index.[xyz] < grid_size.
-    if ((shifted_index.cast<unsigned int>() >= grid_size()).any()) {
+    if ((shifted_index >= grid_size()).any()
+            || (shifted_index < 0).any()) {
       return ValueType();
     }
     const Eigen::Array3i meta_index = GetMetaIndex(shifted_index);
@@ -462,19 +463,23 @@ class SeparateGrowthDynamicGrid {
   // Returns a pointer to the value at 'index' to allow changing it, dynamically
   // growing the DynamicGrid and constructing new WrappedGrids as needed.
   ValueType* mutable_value(const Eigen::Array3i& index) {
+
     const Eigen::Array3i g_sz = grid_size();
     const Eigen::Array3i shifted_index = index + (g_sz / 2);
     // The cast to unsigned is for performance to check with 3 comparisons
     // shifted_index.[xyz] >= 0 and shifted_index.[xyz] < grid_size.
-    if (shifted_index.cast<unsigned int>().x() >= g_sz.x()) {
+    if (static_cast<unsigned int>(shifted_index.x())
+            >= static_cast<unsigned int>(g_sz.x())) {
       GrowX();
       return mutable_value(index);
     }
-    if (shifted_index.cast<unsigned int>().y() >= g_sz.y()) {
+    if (static_cast<unsigned int>(shifted_index.y())
+            >= static_cast<unsigned int>(g_sz.y())) {
       GrowY();
       return mutable_value(index);
     }
-    if (shifted_index.cast<unsigned int>().z() >= g_sz.z()) {
+    if (static_cast<unsigned int>(shifted_index.z())
+            >= static_cast<unsigned int>(g_sz.z())) {
       GrowZ();
       return mutable_value(index);
     }
@@ -521,8 +526,8 @@ class SeparateGrowthDynamicGrid {
           To3DIndex(outer_index, size_bits_) * WrappedGrid::grid_size() +
           nested_iterator_.GetCellIndex();
       return shifted_index - (Eigen::Array3i(1 << (size_bits_.x() - 1),
-                                            1 << (size_bits_.y() - 1),
-                                            1 << (size_bits_.z() - 1))
+                                             1 << (size_bits_.y() - 1),
+                                             1 << (size_bits_.z() - 1))
               * WrappedGrid::grid_size());
     }
 
@@ -582,13 +587,14 @@ class SeparateGrowthDynamicGrid {
                                   size_bits_.y(),
                                   size_bits_.z());
     CHECK_LE(new_bits.x(), 8);
+    const int offset = 1 << (size_bits_.x() - 1);
     std::vector<std::unique_ptr<WrappedGrid>> new_meta_cells_(
         2 * meta_cells_.size());
     for (int z = 0; z != (1 << size_bits_.z()); ++z) {
       for (int y = 0; y != (1 << size_bits_.y()); ++y) {
         for (int x = 0; x != (1 << size_bits_.x()); ++x) {
           const Eigen::Array3i original_meta_index(x, y, z);
-          const Eigen::Array3i new_meta_index(x + (1 << (size_bits_.x() - 1)), y, z);
+          const Eigen::Array3i new_meta_index(x + offset, y, z);
           new_meta_cells_[ToFlatIndex(new_meta_index, new_bits)] =
               std::move(meta_cells_[ToFlatIndex(original_meta_index, size_bits_)]);
         }
@@ -602,13 +608,19 @@ class SeparateGrowthDynamicGrid {
                                   size_bits_.y() + 1,
                                   size_bits_.z());
     CHECK_LE(new_bits.y(), 8);
+    const int offset = 1 << (size_bits_.y() - 1);
     std::vector<std::unique_ptr<WrappedGrid>> new_meta_cells_(
         2 * meta_cells_.size());
+    std::cout << "total sz origin: " << meta_cells_.size()
+              << " sz new: " << new_meta_cells_.size()
+              << " offset: " << offset << std::endl
+              << " new bits: " << new_bits.transpose()
+              << " origin bits: " << size_bits_.transpose() << std::endl;
     for (int z = 0; z != (1 << size_bits_.z()); ++z) {
       for (int y = 0; y != (1 << size_bits_.y()); ++y) {
         for (int x = 0; x != (1 << size_bits_.x()); ++x) {
           const Eigen::Array3i original_meta_index(x, y, z);
-          const Eigen::Array3i new_meta_index(x, y + (1 << (size_bits_.y() - 1)), z);
+          const Eigen::Array3i new_meta_index(x, y + offset, z);
           new_meta_cells_[ToFlatIndex(new_meta_index, new_bits)] =
               std::move(meta_cells_[ToFlatIndex(original_meta_index, size_bits_)]);
         }
@@ -621,17 +633,15 @@ class SeparateGrowthDynamicGrid {
     const Eigen::Array3i new_bits(size_bits_.x(),
                                   size_bits_.y(),
                                   size_bits_.z() + 1);
-    const Eigen::Array3i new_offset(1 << size_bits_.x(),
-                                    1 << size_bits_.y(),
-                                    1 << size_bits_.z());
     CHECK_LE(new_bits.z(), 8);
+    const int offset = 1 << (size_bits_.z() - 1);
     std::vector<std::unique_ptr<WrappedGrid>> new_meta_cells_(
         2 * meta_cells_.size());
     for (int z = 0; z != (1 << size_bits_.z()); ++z) {
       for (int y = 0; y != (1 << size_bits_.y()); ++y) {
         for (int x = 0; x != (1 << size_bits_.x()); ++x) {
           const Eigen::Array3i original_meta_index(x, y, z);
-          const Eigen::Array3i new_meta_index(x, y, z + (1 << (size_bits_.z() - 1)));
+          const Eigen::Array3i new_meta_index(x, y, z + offset);
           new_meta_cells_[ToFlatIndex(new_meta_index, new_bits)] =
               std::move(meta_cells_[ToFlatIndex(original_meta_index, size_bits_)]);
         }
@@ -646,7 +656,7 @@ class SeparateGrowthDynamicGrid {
 };
 
 template <typename ValueType>
-using GridBase = DynamicGrid<NestedGrid<FlatGrid<ValueType, 3>, 3>>;
+using GridBase = SeparateGrowthDynamicGrid<NestedGrid<FlatGrid<ValueType, 3>, 3>>;
 
 // Represents a 3D grid as a wide, shallow tree.
 template <typename ValueType>
