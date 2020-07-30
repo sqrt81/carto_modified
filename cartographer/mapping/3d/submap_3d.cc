@@ -294,6 +294,19 @@ std::vector<std::shared_ptr<Submap3D>> ActiveSubmaps3D::submaps() const {
   return submaps_;
 }
 
+void ActiveSubmaps3D::InitSubmap(const proto::Submap3D &init_map)
+{
+    matching_submap_index_ = 0;
+    for(auto& item : submaps_)
+    {
+        if(!item->finished())
+            item->Finish();
+    }
+    submaps_.clear();
+    submaps_.emplace_back(new Submap3D(init_map));
+    LOG(INFO) << "Inited submap " << matching_submap_index_ + submaps_.size();
+}
+
 int ActiveSubmaps3D::matching_index() const { return matching_submap_index_; }
 
 void ActiveSubmaps3D::InsertRangeData(

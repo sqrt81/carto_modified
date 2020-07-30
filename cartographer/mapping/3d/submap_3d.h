@@ -100,6 +100,8 @@ class ActiveSubmaps3D {
 
   std::vector<std::shared_ptr<Submap3D>> submaps() const;
 
+  void InitSubmap(const proto::Submap3D& init_map);
+
  private:
   void AddSubmap(const transform::Rigid3d& local_submap_pose);
 

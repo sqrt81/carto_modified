@@ -40,7 +40,7 @@ static auto* kScanMatcherResidualAngleMetric = metrics::Histogram::Null();
 LocalTrajectoryBuilder3D::LocalTrajectoryBuilder3D(
     const mapping::proto::LocalTrajectoryBuilderOptions3D& options,
     const std::vector<std::string>& expected_range_sensor_ids)
-    : options_(options),
+    : options_(options), pure_local(false),
       active_submaps_(options.submaps_options()),
       motion_filter_(options.motion_filter_options()),
       real_time_correlative_scan_matcher_(
@@ -166,6 +166,12 @@ LocalTrajectoryBuilder3D::AddRangeData(
   return nullptr;
 }
 
+void LocalTrajectoryBuilder3D::InitSubmap(const proto::Submap3D &init_map)
+{
+    active_submaps_.InitSubmap(init_map);
+    pure_local = true; // don't update submap
+}
+
 std::unique_ptr<LocalTrajectoryBuilder3D::MatchingResult>
 LocalTrajectoryBuilder3D::AddAccumulatedRangeData(
     const common::Time time,
@@ -276,8 +282,17 @@ LocalTrajectoryBuilder3D::InsertIntoSubmap(
        active_submaps_.submaps()) {
     insertion_submaps.push_back(submap);
   }
-  active_submaps_.InsertRangeData(filtered_range_data_in_local,
-                                  gravity_alignment);
+
+  if(!pure_local)
+  {
+    active_submaps_.InsertRangeData(filtered_range_data_in_local,
+                                    gravity_alignment);
+  }
+  else
+  {
+      return nullptr;
+  }
+
   const Eigen::VectorXf rotational_scan_matcher_histogram =
       scan_matching::RotationalScanMatcher::ComputeHistogram(
           sensor::TransformPointCloud(

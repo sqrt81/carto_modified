@@ -51,6 +51,23 @@ inline Eigen::Array3i To3DIndex(const int index, const int bits) {
                         (index >> bits) >> bits);
 }
 
+inline int ToFlatIndex(const Eigen::Array3i& index, const Eigen::Array3i& size_bits) {
+    DCHECK((index >= 0).all()
+           && (index.x() < (1 << size_bits.x()))
+           && (index.y() < (1 << size_bits.y()))
+           && (index.z() < (1 << size_bits.z()))) << index;
+    return (((index.z() << size_bits.z()) + index.y()) << size_bits.y()) + index.x();
+  }
+
+inline Eigen::Array3i To3DIndex(const int index, const Eigen::Array3i& size_bits) {
+  DCHECK_LT(index, 1 << size_bits.sum());
+  const int mask_x = (1 << size_bits.x()) - 1;
+  const int mask_y = (1 << size_bits.y()) - 1;
+  const int mask_z = (1 << size_bits.z()) - 1;
+  return Eigen::Array3i(index & mask_x, (index >> size_bits.x()) & mask_y,
+                        (index >> size_bits.x()) >> size_bits.y());
+}
+
 // A function to compare value to the default value. (Allows specializations).
 template <typename TValueType>
 bool IsDefaultValue(const TValueType& v) {
@@ -257,7 +274,9 @@ class DynamicGrid {
   DynamicGrid& operator=(DynamicGrid&&) = default;
 
   // Returns the current number of voxels per dimension.
-  int grid_size() const { return WrappedGrid::grid_size() << bits_; }
+  int grid_size() const {
+      std::cout << "grid size" <<  WrappedGrid::grid_size().transpose() << std::endl << std::endl;
+      return WrappedGrid::grid_size() << bits_; }
 
   // Returns the value stored at 'index'.
   ValueType value(const Eigen::Array3i& index) const {
@@ -403,6 +422,229 @@ class DynamicGrid {
   }
 
   int bits_;
+  std::vector<std::unique_ptr<WrappedGrid>> meta_cells_;
+};
+
+template <typename WrappedGrid>
+class SeparateGrowthDynamicGrid {
+ public:
+  using ValueType = typename WrappedGrid::ValueType;
+
+  SeparateGrowthDynamicGrid() : size_bits_(1, 1, 1), meta_cells_(8) {}
+  SeparateGrowthDynamicGrid(SeparateGrowthDynamicGrid&&) = default;
+  SeparateGrowthDynamicGrid& operator=(SeparateGrowthDynamicGrid&&) = default;
+
+  // Returns the current number of voxels per dimension.
+  Eigen::Array3i grid_size() const
+  {
+      return WrappedGrid::grid_size()
+              * Eigen::Array3i(1 << size_bits_.x(),
+                               1 << size_bits_.y(),
+                               1 << size_bits_.z());
+  }
+
+  // Returns the value stored at 'index'.
+  ValueType value(const Eigen::Array3i& index) const {
+    const Eigen::Array3i shifted_index = index + (grid_size() / 2);
+    // The cast to unsigned is for performance to check with 3 comparisons
+    // shifted_index.[xyz] >= 0 and shifted_index.[xyz] < grid_size.
+    if ((shifted_index.cast<unsigned int>() >= grid_size()).any()) {
+      return ValueType();
+    }
+    const Eigen::Array3i meta_index = GetMetaIndex(shifted_index);
+    const WrappedGrid* const meta_cell =
+        meta_cells_[ToFlatIndex(meta_index, size_bits_)].get();
+    if (meta_cell == nullptr) {
+      return ValueType();
+    }
+    const Eigen::Array3i inner_index =
+        shifted_index - meta_index * WrappedGrid::grid_size();
+    return meta_cell->value(inner_index);
+  }
+
+  // Returns a pointer to the value at 'index' to allow changing it, dynamically
+  // growing the DynamicGrid and constructing new WrappedGrids as needed.
+  ValueType* mutable_value(const Eigen::Array3i& index) {
+    const Eigen::Array3i g_sz = grid_size();
+    const Eigen::Array3i shifted_index = index + (g_sz / 2);
+    // The cast to unsigned is for performance to check with 3 comparisons
+    // shifted_index.[xyz] >= 0 and shifted_index.[xyz] < grid_size.
+    if (shifted_index.cast<unsigned int>().x() >= g_sz.x()) {
+      GrowX();
+      return mutable_value(index);
+    }
+    if (shifted_index.cast<unsigned int>().y() >= g_sz.y()) {
+      GrowY();
+      return mutable_value(index);
+    }
+    if (shifted_index.cast<unsigned int>().z() >= g_sz.z()) {
+      GrowZ();
+      return mutable_value(index);
+    }
+    const Eigen::Array3i meta_index = GetMetaIndex(shifted_index);
+    std::unique_ptr<WrappedGrid>& meta_cell =
+        meta_cells_[ToFlatIndex(meta_index, size_bits_)];
+    if (meta_cell == nullptr) {
+      meta_cell = common::make_unique<WrappedGrid>();
+    }
+    const Eigen::Array3i inner_index =
+        shifted_index - meta_index * WrappedGrid::grid_size();
+    return meta_cell->mutable_value(inner_index);
+  }
+
+  // An iterator for iterating over all values not comparing equal to the
+  // default constructed value.
+  class Iterator {
+   public:
+    explicit Iterator(const SeparateGrowthDynamicGrid& dynamic_grid)
+        : size_bits_(dynamic_grid.size_bits_),
+          current_(dynamic_grid.meta_cells_.data()),
+          end_(dynamic_grid.meta_cells_.data() +
+               dynamic_grid.meta_cells_.size()),
+          nested_iterator_() {
+      AdvanceToValidNestedIterator();
+    }
+
+    void Next() {
+      DCHECK(!Done());
+      nested_iterator_.Next();
+      if (!nested_iterator_.Done()) {
+        return;
+      }
+      ++current_;
+      AdvanceToValidNestedIterator();
+    }
+
+    bool Done() const { return current_ == end_; }
+
+    Eigen::Array3i GetCellIndex() const {
+      DCHECK(!Done());
+      const int outer_index = (1 << size_bits_.sum()) - (end_ - current_);
+      const Eigen::Array3i shifted_index =
+          To3DIndex(outer_index, size_bits_) * WrappedGrid::grid_size() +
+          nested_iterator_.GetCellIndex();
+      return shifted_index - (Eigen::Array3i(1 << (size_bits_.x() - 1),
+                                            1 << (size_bits_.y() - 1),
+                                            1 << (size_bits_.z() - 1))
+              * WrappedGrid::grid_size());
+    }
+
+    const ValueType& GetValue() const {
+      DCHECK(!Done());
+      return nested_iterator_.GetValue();
+    }
+
+    void AdvanceToEnd() { current_ = end_; }
+
+    const std::pair<Eigen::Array3i, ValueType> operator*() const {
+      return std::pair<Eigen::Array3i, ValueType>(GetCellIndex(), GetValue());
+    }
+
+    Iterator& operator++() {
+      Next();
+      return *this;
+    }
+
+    bool operator!=(const Iterator& it) const {
+      return it.current_ != current_;
+    }
+
+   private:
+    void AdvanceToValidNestedIterator() {
+      for (; !Done(); ++current_) {
+        if (*current_ != nullptr) {
+          nested_iterator_ = typename WrappedGrid::Iterator(**current_);
+          if (!nested_iterator_.Done()) {
+            break;
+          }
+        }
+      }
+    }
+
+    Eigen::Vector3i size_bits_;
+    const std::unique_ptr<WrappedGrid>* current_;
+    const std::unique_ptr<WrappedGrid>* const end_;
+    typename WrappedGrid::Iterator nested_iterator_;
+  };
+
+ private:
+  // Returns the Eigen::Array3i (meta) index of the meta cell containing
+  // 'index'.
+  Eigen::Array3i GetMetaIndex(const Eigen::Array3i& index) const {
+    DCHECK((index >= 0).all()) << index;
+    const Eigen::Array3i meta_index = index / WrappedGrid::grid_size();
+    DCHECK((meta_index.x() < (1 << size_bits_.x()))
+           && (meta_index.y() < (1 << size_bits_.y()))
+           && (meta_index.z() < (1 << size_bits_.z()))) << index;
+    return meta_index;
+  }
+
+  // Grows this grid by a factor of 2 in one of the 3 dimensions.
+  void GrowX() {
+    const Eigen::Array3i new_bits(size_bits_.x() + 1,
+                                  size_bits_.y(),
+                                  size_bits_.z());
+    CHECK_LE(new_bits.x(), 8);
+    std::vector<std::unique_ptr<WrappedGrid>> new_meta_cells_(
+        2 * meta_cells_.size());
+    for (int z = 0; z != (1 << size_bits_.z()); ++z) {
+      for (int y = 0; y != (1 << size_bits_.y()); ++y) {
+        for (int x = 0; x != (1 << size_bits_.x()); ++x) {
+          const Eigen::Array3i original_meta_index(x, y, z);
+          const Eigen::Array3i new_meta_index(x + (1 << (size_bits_.x() - 1)), y, z);
+          new_meta_cells_[ToFlatIndex(new_meta_index, new_bits)] =
+              std::move(meta_cells_[ToFlatIndex(original_meta_index, size_bits_)]);
+        }
+      }
+    }
+    meta_cells_ = std::move(new_meta_cells_);
+    size_bits_ = new_bits;
+  }
+  void GrowY() {
+    const Eigen::Array3i new_bits(size_bits_.x(),
+                                  size_bits_.y() + 1,
+                                  size_bits_.z());
+    CHECK_LE(new_bits.y(), 8);
+    std::vector<std::unique_ptr<WrappedGrid>> new_meta_cells_(
+        2 * meta_cells_.size());
+    for (int z = 0; z != (1 << size_bits_.z()); ++z) {
+      for (int y = 0; y != (1 << size_bits_.y()); ++y) {
+        for (int x = 0; x != (1 << size_bits_.x()); ++x) {
+          const Eigen::Array3i original_meta_index(x, y, z);
+          const Eigen::Array3i new_meta_index(x, y + (1 << (size_bits_.y() - 1)), z);
+          new_meta_cells_[ToFlatIndex(new_meta_index, new_bits)] =
+              std::move(meta_cells_[ToFlatIndex(original_meta_index, size_bits_)]);
+        }
+      }
+    }
+    meta_cells_ = std::move(new_meta_cells_);
+    size_bits_ = new_bits;
+  }
+  void GrowZ() {
+    const Eigen::Array3i new_bits(size_bits_.x(),
+                                  size_bits_.y(),
+                                  size_bits_.z() + 1);
+    const Eigen::Array3i new_offset(1 << size_bits_.x(),
+                                    1 << size_bits_.y(),
+                                    1 << size_bits_.z());
+    CHECK_LE(new_bits.z(), 8);
+    std::vector<std::unique_ptr<WrappedGrid>> new_meta_cells_(
+        2 * meta_cells_.size());
+    for (int z = 0; z != (1 << size_bits_.z()); ++z) {
+      for (int y = 0; y != (1 << size_bits_.y()); ++y) {
+        for (int x = 0; x != (1 << size_bits_.x()); ++x) {
+          const Eigen::Array3i original_meta_index(x, y, z);
+          const Eigen::Array3i new_meta_index(x, y, z + (1 << (size_bits_.z() - 1)));
+          new_meta_cells_[ToFlatIndex(new_meta_index, new_bits)] =
+              std::move(meta_cells_[ToFlatIndex(original_meta_index, size_bits_)]);
+        }
+      }
+    }
+    meta_cells_ = std::move(new_meta_cells_);
+    size_bits_ = new_bits;
+  }
+
+  Eigen::Vector3i size_bits_;
   std::vector<std::unique_ptr<WrappedGrid>> meta_cells_;
 };
 

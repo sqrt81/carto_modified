@@ -90,6 +90,8 @@ class MapBuilder : public MapBuilderInterface {
       trajectory_builders_;
   std::vector<proto::TrajectoryBuilderOptionsWithSensorIds>
       all_trajectory_builder_options_;
+
+  proto::Submap init_map;
 };
 
 }  // namespace mapping

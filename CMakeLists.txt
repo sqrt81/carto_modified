@@ -16,6 +16,8 @@ cmake_minimum_required(VERSION 2.8.12)  # Ships with Ubuntu 14.04 (Trusty)
 
 project(cartographer)
 
+include_directories(/home/sqrt81/Documents/catkin_ws/build_isolated/cartographer/devel)
+
 set(CARTOGRAPHER_MAJOR_VERSION 1)
 set(CARTOGRAPHER_MINOR_VERSION 0)
 set(CARTOGRAPHER_PATCH_VERSION 0)

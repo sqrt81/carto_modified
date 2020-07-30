@@ -107,6 +107,11 @@ int MapBuilder::AddTrajectoryBuilder(
           trajectory_options.trajectory_builder_3d_options(),
           SelectRangeSensorIds(expected_sensor_ids));
     }
+    if (trajectory_options.pure_localization()
+            && options_.use_trajectory_builder_3d())
+    {
+        local_trajectory_builder->InitSubmap(init_map.submap_3d());
+    }
     DCHECK(dynamic_cast<PoseGraph3D*>(pose_graph_.get()));
     trajectory_builders_.push_back(
         common::make_unique<CollatedTrajectoryBuilder>(
@@ -281,6 +286,9 @@ void MapBuilder::LoadState(io::ProtoStreamReaderInterface* const reader,
                       "corrupt!.";
         break;
       case SerializedData::kSubmap: {
+        if(!init_map.has_submap_id()) // init map is empty, set it
+            init_map = proto.submap();
+
         proto.mutable_submap()->mutable_submap_id()->set_trajectory_id(
             trajectory_remapping.at(
                 proto.submap().submap_id().trajectory_id()));

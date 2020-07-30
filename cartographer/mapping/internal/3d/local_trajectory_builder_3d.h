@@ -74,6 +74,8 @@ class LocalTrajectoryBuilder3D {
 
   static void RegisterMetrics(metrics::FamilyFactory* family_factory);
 
+  void InitSubmap(const proto::Submap3D &init_map);
+
  private:
   std::unique_ptr<MatchingResult> AddAccumulatedRangeData(
       common::Time time,
@@ -88,6 +90,7 @@ class LocalTrajectoryBuilder3D {
       const Eigen::Quaterniond& gravity_alignment);
 
   const mapping::proto::LocalTrajectoryBuilderOptions3D options_;
+  bool pure_local;
   mapping::ActiveSubmaps3D active_submaps_;
 
   mapping::MotionFilter motion_filter_;
