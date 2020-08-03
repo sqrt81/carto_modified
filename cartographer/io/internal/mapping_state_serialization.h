@@ -35,6 +35,11 @@ void WritePbStream(
         builder_options,
     ProtoStreamWriterInterface* const writer, bool include_unfinished_submaps);
 
+void WriteMaps(
+        const mapping::MapById<mapping::SubmapId,
+                               mapping::PoseGraphInterface::SubmapData> submaps,
+        ProtoStreamWriterInterface* const writer);
+
 }  // namespace io
 }  // namespace cartographer
 

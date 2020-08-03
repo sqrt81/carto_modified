@@ -611,11 +611,11 @@ class SeparateGrowthDynamicGrid {
     const int offset = 1 << (size_bits_.y() - 1);
     std::vector<std::unique_ptr<WrappedGrid>> new_meta_cells_(
         2 * meta_cells_.size());
-    std::cout << "total sz origin: " << meta_cells_.size()
-              << " sz new: " << new_meta_cells_.size()
-              << " offset: " << offset << std::endl
-              << " new bits: " << new_bits.transpose()
-              << " origin bits: " << size_bits_.transpose() << std::endl;
+//    std::cout << "total sz origin: " << meta_cells_.size()
+//              << " sz new: " << new_meta_cells_.size()
+//              << " offset: " << offset << std::endl
+//              << " new bits: " << new_bits.transpose()
+//              << " origin bits: " << size_bits_.transpose() << std::endl;
     for (int z = 0; z != (1 << size_bits_.z()); ++z) {
       for (int y = 0; y != (1 << size_bits_.y()); ++y) {
         for (int x = 0; x != (1 << size_bits_.x()); ++x) {

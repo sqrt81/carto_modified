@@ -364,7 +364,11 @@ LocalTrajectoryBuilder3D::InsertIntoSubmap(
   const Eigen::Quaterniond local_from_gravity_aligned =
       pose_estimate.rotation() * gravity_alignment.inverse();
 
-  if(!pure_local)
+  if(pure_local)
+  {
+      return nullptr;
+  }
+  else
   {
       std::vector<std::shared_ptr<const mapping::Submap3D>> insertion_submaps =
               active_submaps_.InsertData(filtered_range_data_in_local,
@@ -381,10 +385,6 @@ LocalTrajectoryBuilder3D::InsertIntoSubmap(
                                       rotational_scan_matcher_histogram_in_gravity,
                                       pose_estimate}),
                                   std::move(insertion_submaps)});
-  }
-  else
-  {
-      return nullptr;
   }
 }
 

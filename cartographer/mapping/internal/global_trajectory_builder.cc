@@ -64,7 +64,7 @@ class GlobalTrajectoryBuilder : public mapping::TrajectoryBuilderInterface {
     kLocalSlamMatchingResults->Increment();
     std::unique_ptr<InsertionResult> insertion_result;
     if (matching_result->insertion_result != nullptr) {
-      kLocalSlamInsertionResults->Increment();
+     kLocalSlamInsertionResults->Increment();
       auto node_id = pose_graph_->AddNode(
           matching_result->insertion_result->constant_data, trajectory_id_,
           matching_result->insertion_result->insertion_submaps);

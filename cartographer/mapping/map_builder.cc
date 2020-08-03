@@ -29,6 +29,7 @@
 #include "cartographer/mapping/internal/collated_trajectory_builder.h"
 #include "cartographer/mapping/internal/global_trajectory_builder.h"
 #include "cartographer/mapping/proto/internal/legacy_serialized_data.pb.h"
+#include "cartographer/mapping/3d/hybrid_grid_intergrator.h"
 #include "cartographer/sensor/internal/collator.h"
 #include "cartographer/sensor/internal/trajectory_collator.h"
 #include "cartographer/sensor/internal/voxel_filter.h"
@@ -128,9 +129,11 @@ int MapBuilder::AddTrajectoryBuilder(
           trajectory_options.trajectory_builder_3d_options(),
           SelectRangeSensorIds(expected_sensor_ids));
     }
-    if (trajectory_options.pure_localization()
+    if ((trajectory_options.has_pure_localization_trimmer()
+            || trajectory_options.pure_localization())
             && options_.use_trajectory_builder_3d())
     {
+        std::cout << "use pure localization" << std::endl;
         local_trajectory_builder->InitSubmap(init_map.submap_3d());
     }
     DCHECK(dynamic_cast<PoseGraph3D*>(pose_graph_.get()));
@@ -224,7 +227,12 @@ bool MapBuilder::SerializeStateToFile(bool include_unfinished_submaps,
   io::ProtoStreamWriter writer(filename);
   io::WritePbStream(*pose_graph_, all_trajectory_builder_options_, &writer,
                     include_unfinished_submaps);
-  return (writer.Close());
+  writer.Close();
+
+  // write maps in a new place
+  io::ProtoStreamWriter map_writer(filename + ".map");
+  io::WriteMaps(pose_graph_->GetAllSubmapData(), &map_writer);
+  return map_writer.Close();
 }
 
 std::map<int, int> MapBuilder::LoadState(
@@ -285,14 +293,18 @@ std::map<int, int> MapBuilder::LoadState(
 
   // Set global poses of landmarks.
   for (const auto& landmark : pose_graph_proto.landmark_poses()) {
-    pose_graph_->SetLandmarkPose(landmark.landmark_id(),
-                                 transform::ToRigid3(landmark.global_pose()),
-                                 true);
+//    pose_graph_->SetLandmarkPose(landmark.landmark_id(),
+//                                 transform::ToRigid3(landmark.global_pose()),
+//                                 true);
   }
 
   MapById<SubmapId, mapping::proto::Submap> submap_id_to_submap;
   MapById<NodeId, mapping::proto::Node> node_id_to_node;
   SerializedData proto;
+  HybridGridIntergrator high_res_intergrator;
+  HybridGridIntergrator low_res_intergrator;
+  int histogram_size = 0;
+
   while (deserializer.ReadNextSerializedData(&proto)) {
     switch (proto.data_case()) {
       case SerializedData::kPoseGraph:
@@ -305,8 +317,15 @@ std::map<int, int> MapBuilder::LoadState(
                       "corrupt!.";
         break;
       case SerializedData::kSubmap: {
-        if(!init_map.has_submap_id()) // init map is empty, set it
-            init_map = proto.submap();
+//        if(!init_map.has_submap_3d())
+//            init_map = proto.submap();
+        high_res_intergrator.InsertGrid(
+                    HybridGrid(proto.submap().submap_3d().high_resolution_hybrid_grid()),
+                    transform::ToRigid3(proto.submap().submap_3d().local_pose()));
+        low_res_intergrator.InsertGrid(
+                    HybridGrid(proto.submap().submap_3d().low_resolution_hybrid_grid()),
+                    transform::ToRigid3(proto.submap().submap_3d().local_pose()));
+        histogram_size = proto.submap().submap_3d().rotational_scan_matcher_histogram_size();
 
         proto.mutable_submap()->mutable_submap_id()->set_trajectory_id(
             trajectory_remapping.at(
@@ -323,44 +342,44 @@ std::map<int, int> MapBuilder::LoadState(
         const NodeId node_id(proto.node().node_id().trajectory_id(),
                              proto.node().node_id().node_index());
         const transform::Rigid3d& node_pose = node_poses.at(node_id);
-        pose_graph_->AddNodeFromProto(node_pose, proto.node());
+//        pose_graph_->AddNodeFromProto(node_pose, proto.node());
         node_id_to_node.Insert(node_id, proto.node());
         break;
       }
       case SerializedData::kTrajectoryData: {
-        proto.mutable_trajectory_data()->set_trajectory_id(
-            trajectory_remapping.at(proto.trajectory_data().trajectory_id()));
-        pose_graph_->SetTrajectoryDataFromProto(proto.trajectory_data());
+//        proto.mutable_trajectory_data()->set_trajectory_id(
+//            trajectory_remapping.at(proto.trajectory_data().trajectory_id()));
+//        pose_graph_->SetTrajectoryDataFromProto(proto.trajectory_data());
         break;
       }
       case SerializedData::kImuData: {
         if (load_frozen_state) break;
-        pose_graph_->AddImuData(
-            trajectory_remapping.at(proto.imu_data().trajectory_id()),
-            sensor::FromProto(proto.imu_data().imu_data()));
+//        pose_graph_->AddImuData(
+//            trajectory_remapping.at(proto.imu_data().trajectory_id()),
+//            sensor::FromProto(proto.imu_data().imu_data()));
         break;
       }
       case SerializedData::kOdometryData: {
         if (load_frozen_state) break;
-        pose_graph_->AddOdometryData(
-            trajectory_remapping.at(proto.odometry_data().trajectory_id()),
-            sensor::FromProto(proto.odometry_data().odometry_data()));
+//        pose_graph_->AddOdometryData(
+//            trajectory_remapping.at(proto.odometry_data().trajectory_id()),
+//            sensor::FromProto(proto.odometry_data().odometry_data()));
         break;
       }
       case SerializedData::kFixedFramePoseData: {
         if (load_frozen_state) break;
-        pose_graph_->AddFixedFramePoseData(
-            trajectory_remapping.at(
-                proto.fixed_frame_pose_data().trajectory_id()),
-            sensor::FromProto(
-                proto.fixed_frame_pose_data().fixed_frame_pose_data()));
+//        pose_graph_->AddFixedFramePoseData(
+//            trajectory_remapping.at(
+//                proto.fixed_frame_pose_data().trajectory_id()),
+//            sensor::FromProto(
+//                proto.fixed_frame_pose_data().fixed_frame_pose_data()));
         break;
       }
       case SerializedData::kLandmarkData: {
         if (load_frozen_state) break;
-        pose_graph_->AddLandmarkData(
-            trajectory_remapping.at(proto.landmark_data().trajectory_id()),
-            sensor::FromProto(proto.landmark_data().landmark_data()));
+//        pose_graph_->AddLandmarkData(
+//            trajectory_remapping.at(proto.landmark_data().trajectory_id()),
+//            sensor::FromProto(proto.landmark_data().landmark_data()));
         break;
       }
       default:
@@ -368,6 +387,17 @@ std::map<int, int> MapBuilder::LoadState(
                      << proto.GetTypeName();
     }
   }
+
+  auto* const init_submap_3d = init_map.mutable_submap_3d();
+  *init_submap_3d->mutable_local_pose() = transform::ToProto(transform::Rigid3d());
+  *init_submap_3d->mutable_low_resolution_hybrid_grid()
+          = low_res_intergrator.Get()->ToProto();
+  *init_submap_3d->mutable_high_resolution_hybrid_grid()
+          = high_res_intergrator.Get()->ToProto();
+  init_submap_3d->set_num_range_data(0);
+  init_submap_3d->set_finished(true);
+  for(int i = 0; i < histogram_size; i++)
+    init_submap_3d->add_rotational_scan_matcher_histogram(0);
 
   // TODO(schwoere): Remove backwards compatibility once the pbstream format
   // version 2 is established.
@@ -378,10 +408,12 @@ std::map<int, int> MapBuilder::LoadState(
             submap_id_to_submap, node_id_to_node, pose_graph_proto);
   }
 
-  for (const auto& submap_id_submap : submap_id_to_submap) {
-    pose_graph_->AddSubmapFromProto(submap_poses.at(submap_id_submap.id),
-                                    submap_id_submap.data);
-  }
+//  for (const auto& submap_id_submap : submap_id_to_submap) {
+//    pose_graph_->AddSubmapFromProto(submap_poses.at(submap_id_submap.id),
+//                                    submap_id_submap.data);
+//  }
+
+  pose_graph_->AddSubmapFromProto(transform::Rigid3d::Identity(), init_map);
 
   if (load_frozen_state) {
     // Add information about which nodes belong to which submap.
@@ -392,18 +424,18 @@ std::map<int, int> MapBuilder::LoadState(
           proto::PoseGraph::Constraint::INTRA_SUBMAP) {
         continue;
       }
-      pose_graph_->AddNodeToSubmap(
-          NodeId{constraint_proto.node_id().trajectory_id(),
-                 constraint_proto.node_id().node_index()},
-          SubmapId{constraint_proto.submap_id().trajectory_id(),
-                   constraint_proto.submap_id().submap_index()});
+//      pose_graph_->AddNodeToSubmap(
+//          NodeId{constraint_proto.node_id().trajectory_id(),
+//                 constraint_proto.node_id().node_index()},
+//          SubmapId{constraint_proto.submap_id().trajectory_id(),
+//                   constraint_proto.submap_id().submap_index()});
     }
   } else {
     // When loading unfrozen trajectories, 'AddSerializedConstraints' will
     // take care of adding information about which nodes belong to which
     // submap.
-    pose_graph_->AddSerializedConstraints(
-        FromProto(pose_graph_proto.constraint()));
+//    pose_graph_->AddSerializedConstraints(
+//        FromProto(pose_graph_proto.constraint()));
   }
   CHECK(reader->eof());
   return trajectory_remapping;

@@ -233,5 +233,13 @@ void WritePbStream(
   SerializeLandmarkNodes(pose_graph.GetLandmarkNodes(), writer);
 }
 
+void WriteMaps(
+        const MapById<SubmapId, PoseGraphInterface::SubmapData> submaps,
+        ProtoStreamWriterInterface* const writer)
+{
+    writer->WriteProto(CreateHeader());
+    SerializeSubmaps(submaps, false, writer);
+}
+
 }  // namespace io
 }  // namespace cartographer
