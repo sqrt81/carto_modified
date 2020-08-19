@@ -333,12 +333,30 @@ LocalTrajectoryBuilder3D::AddAccumulatedRangeData(
 
 void LocalTrajectoryBuilder3D::AddOdometryData(
     const sensor::OdometryData& odometry_data) {
-  if (extrapolator_ == nullptr) {
-    // Until we've initialized the extrapolator we cannot add odometry data.
-    LOG(INFO) << "Extrapolator not yet initialized.";
-    return;
-  }
-  extrapolator_->AddOdometryData(odometry_data);
+//  if (extrapolator_ == nullptr) {
+//    // Until we've initialized the extrapolator we cannot add odometry data.
+//    LOG(INFO) << "Extrapolator not yet initialized.";
+//    return;
+//  }
+  //extrapolator_->AddOdometryData(odometry_data);
+
+//  const common::Duration dt = common::FromSeconds(
+//    options_.pose_extrapolator_options().constant_velocity().pose_queue_duration()) / 4;
+  const common::Duration dt = common::FromSeconds(0.2);
+
+  const common::Time dummy_time = odometry_data.time - dt * 4;
+  const sensor::ImuData dummy_imu = {dummy_time,
+                                     {0, 0,
+                                      options_.pose_extrapolator_options().
+                                      constant_velocity().imu_gravity_time_constant()},
+                                     {0, 0, 0}};
+
+  extrapolator_ = mapping::PoseExtrapolatorInterface::CreateWithImuData(
+              options_.pose_extrapolator_options(), {dummy_imu});
+
+  extrapolator_->AddPose(dummy_time + dt, odometry_data.pose);
+  extrapolator_->AddPose(dummy_time + dt * 2, odometry_data.pose);
+  extrapolator_->AddPose(dummy_time + dt * 3, odometry_data.pose);
 }
 
 std::unique_ptr<LocalTrajectoryBuilder3D::InsertionResult>

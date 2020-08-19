@@ -76,7 +76,7 @@ class MapBuilder : public MapBuilderInterface {
   }
 
   mapping::TrajectoryBuilderInterface *GetTrajectoryBuilder(
-      int trajectory_id) const override {
+      int trajectory_id) override {
     return trajectory_builders_.at(trajectory_id).get();
   }
 

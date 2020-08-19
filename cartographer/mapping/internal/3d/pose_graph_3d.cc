@@ -199,7 +199,7 @@ void PoseGraph3D::AddImuData(const int trajectory_id,
   AddWorkItem([=]() LOCKS_EXCLUDED(mutex_) {
     absl::MutexLock locker(&mutex_);
     if (CanAddWorkItemModifying(trajectory_id)) {
-      optimization_problem_->AddImuData(trajectory_id, imu_data);
+//      optimization_problem_->AddImuData(trajectory_id, imu_data);
     }
     return WorkItem::Result::kDoNotRunOptimization;
   });
@@ -210,7 +210,7 @@ void PoseGraph3D::AddOdometryData(const int trajectory_id,
   AddWorkItem([=]() LOCKS_EXCLUDED(mutex_) {
     absl::MutexLock locker(&mutex_);
     if (CanAddWorkItemModifying(trajectory_id)) {
-      optimization_problem_->AddOdometryData(trajectory_id, odometry_data);
+//      optimization_problem_->AddOdometryData(trajectory_id, odometry_data);
     }
     return WorkItem::Result::kDoNotRunOptimization;
   });
@@ -222,8 +222,8 @@ void PoseGraph3D::AddFixedFramePoseData(
   AddWorkItem([=]() LOCKS_EXCLUDED(mutex_) {
     absl::MutexLock locker(&mutex_);
     if (CanAddWorkItemModifying(trajectory_id)) {
-      optimization_problem_->AddFixedFramePoseData(trajectory_id,
-                                                   fixed_frame_pose_data);
+//      optimization_problem_->AddFixedFramePoseData(trajectory_id,
+//                                                   fixed_frame_pose_data);
     }
     return WorkItem::Result::kDoNotRunOptimization;
   });
