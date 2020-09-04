@@ -80,6 +80,13 @@ std::unique_ptr<transform::Rigid3d> LocalTrajectoryBuilder3D::ScanMatch(
     kRealTimeCorrelativeScanMatcherScoreMetric->Observe(score);
   }
 
+  initial_ceres_pose = {
+      {initial_ceres_pose.translation().x(),
+       initial_ceres_pose.translation().y(),
+       0},
+      initial_ceres_pose.rotation()
+  };
+
   transform::Rigid3d pose_observation_in_submap;
   ceres::Solver::Summary summary;
   ceres_scan_matcher_->Match(
@@ -91,6 +98,15 @@ std::unique_ptr<transform::Rigid3d> LocalTrajectoryBuilder3D::ScanMatch(
         &matching_submap->low_resolution_hybrid_grid()}},
       &pose_observation_in_submap, &summary);
   kCeresScanMatcherCostMetric->Observe(summary.final_cost);
+
+  /** disable z transform **/
+  pose_observation_in_submap = {
+      {pose_observation_in_submap.translation().x(),
+       pose_observation_in_submap.translation().y(),
+       0},
+      pose_observation_in_submap.rotation()
+  };
+
   const double residual_distance = (pose_observation_in_submap.translation() -
                                     initial_ceres_pose.translation())
                                        .norm();

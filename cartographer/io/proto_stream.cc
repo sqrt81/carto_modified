@@ -15,6 +15,7 @@
  */
 
 #include "cartographer/io/proto_stream.h"
+#include "google/protobuf/io/coded_stream.h"
 
 #include "glog/logging.h"
 
@@ -91,7 +92,22 @@ bool ProtoStreamReader::Read(std::string* decompressed_data) {
 
 bool ProtoStreamReader::ReadProto(google::protobuf::Message* proto) {
   std::string decompressed_data;
-  return Read(&decompressed_data) && proto->ParseFromString(decompressed_data);
+
+  if(!Read(&decompressed_data))
+      return false;
+
+  // the file is too large, so it needs some modification
+  // to bypass the length checking issue
+  ::google::protobuf::io::CodedInputStream decoder(
+              reinterpret_cast<const ::google::protobuf::uint8*>(
+                  decompressed_data.data()),
+              decompressed_data.size());
+
+  decoder.SetTotalBytesLimit(1024 * 1024 * 1024, 200 * 1024 * 1024);
+
+  return proto->ParseFromCodedStream(&decoder)
+          && decoder.ConsumedEntireMessage();
+  //return Read(&decompressed_data) && proto->ParseFromString(decompressed_data);
 }
 
 bool ProtoStreamReader::eof() const { return in_.eof(); }

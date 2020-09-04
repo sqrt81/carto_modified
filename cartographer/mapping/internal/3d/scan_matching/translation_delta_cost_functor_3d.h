@@ -40,7 +40,8 @@ class TranslationDeltaCostFunctor3D {
   bool operator()(const T* const translation, T* residual) const {
     residual[0] = scaling_factor_ * (translation[0] - x_);
     residual[1] = scaling_factor_ * (translation[1] - y_);
-    residual[2] = scaling_factor_ * (translation[2] - z_);
+    /** disable z estimation **/
+    residual[2] = scaling_factor_ * (translation[2] - z_) * T(1000000);
     return true;
   }
 

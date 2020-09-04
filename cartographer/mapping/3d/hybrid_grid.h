@@ -586,7 +586,7 @@ class SeparateGrowthDynamicGrid {
     const Eigen::Array3i new_bits(size_bits_.x() + 1,
                                   size_bits_.y(),
                                   size_bits_.z());
-    CHECK_LE(new_bits.x(), 8);
+    CHECK_LE(new_bits.x(), 10);
     const int offset = 1 << (size_bits_.x() - 1);
     std::vector<std::unique_ptr<WrappedGrid>> new_meta_cells_(
         2 * meta_cells_.size());
@@ -607,7 +607,7 @@ class SeparateGrowthDynamicGrid {
     const Eigen::Array3i new_bits(size_bits_.x(),
                                   size_bits_.y() + 1,
                                   size_bits_.z());
-    CHECK_LE(new_bits.y(), 8);
+    CHECK_LE(new_bits.y(), 10);
     const int offset = 1 << (size_bits_.y() - 1);
     std::vector<std::unique_ptr<WrappedGrid>> new_meta_cells_(
         2 * meta_cells_.size());
@@ -630,10 +630,11 @@ class SeparateGrowthDynamicGrid {
     size_bits_ = new_bits;
   }
   void GrowZ() {
+      LOG(WARNING) << "z grown to " << size_bits_.z() + 1;
     const Eigen::Array3i new_bits(size_bits_.x(),
                                   size_bits_.y(),
                                   size_bits_.z() + 1);
-    CHECK_LE(new_bits.z(), 8);
+    CHECK_LE(new_bits.z(), 4);
     const int offset = 1 << (size_bits_.z() - 1);
     std::vector<std::unique_ptr<WrappedGrid>> new_meta_cells_(
         2 * meta_cells_.size());

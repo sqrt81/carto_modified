@@ -227,12 +227,7 @@ bool MapBuilder::SerializeStateToFile(bool include_unfinished_submaps,
   io::ProtoStreamWriter writer(filename);
   io::WritePbStream(*pose_graph_, all_trajectory_builder_options_, &writer,
                     include_unfinished_submaps);
-  writer.Close();
-
-  // write maps in a new place
-  io::ProtoStreamWriter map_writer(filename + ".map");
-  io::WriteMaps(pose_graph_->GetAllSubmapData(), &map_writer);
-  return map_writer.Close();
+  return writer.Close();
 }
 
 std::map<int, int> MapBuilder::LoadState(

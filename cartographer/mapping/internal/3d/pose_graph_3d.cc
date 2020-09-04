@@ -855,6 +855,7 @@ void PoseGraph3D::LogResidualHistograms() const {
 }
 
 void PoseGraph3D::RunOptimization() {
+
   if (optimization_problem_->submap_data().empty()) {
     return;
   }
