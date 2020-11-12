@@ -89,9 +89,16 @@ void PoseExtrapolator::AddPose(const common::Time time,
 }
 
 void PoseExtrapolator::AddImuData(const sensor::ImuData& imu_data) {
-  CHECK(timed_pose_queue_.empty() ||
-        imu_data.time >= timed_pose_queue_.back().time);
-  imu_data_.push_back(imu_data);
+  if (timed_pose_queue_.empty() ||
+        imu_data.time >= timed_pose_queue_.back().time)
+    imu_data_.push_back(imu_data);
+  else
+  {
+    sensor::ImuData modified_data = imu_data;
+    modified_data.time = timed_pose_queue_.back().time;
+    imu_data_.push_back(modified_data);
+  }
+
   TrimImuData();
 }
 

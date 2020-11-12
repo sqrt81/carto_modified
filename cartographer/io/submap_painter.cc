@@ -168,8 +168,8 @@ void DeserializeAndFillSubmapSlices(
       const auto& submap = proto.submap();
       const mapping::SubmapId id{submap.submap_id().trajectory_id(),
                                  submap.submap_id().submap_index()};
-      FillSubmapSlice(submap_poses.at(id), submap, &(*submap_slices)[id],
-                      conversion_tables);
+      FillSubmapSlice(transform::ToRigid3(submap.submap_3d().local_pose()),
+                      submap, &(*submap_slices)[id], conversion_tables);
     }
   }
 }
