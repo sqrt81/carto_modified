@@ -305,6 +305,7 @@ std::vector<std::shared_ptr<const Submap3D>> ActiveSubmaps3D::submaps() const {
                                                       submaps_.end());
 }
 
+// 修改：增加一个方法，用于从现有的文件中加载地图。
 void ActiveSubmaps3D::InitSubmap(const proto::Submap3D &init_map)
 {
     for(auto& item : submaps_)

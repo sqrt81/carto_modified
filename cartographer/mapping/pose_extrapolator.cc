@@ -89,6 +89,7 @@ void PoseExtrapolator::AddPose(const common::Time time,
 }
 
 void PoseExtrapolator::AddImuData(const sensor::ImuData& imu_data) {
+  // 修改：原版的程序只要给出的imu数据时间戳比其它数据的时间戳小就报错退出。但是我们并不使用真实的imu数据。因此我们取消这一报错。
   if (timed_pose_queue_.empty() ||
         imu_data.time >= timed_pose_queue_.back().time)
     imu_data_.push_back(imu_data);

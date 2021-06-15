@@ -4,6 +4,7 @@
 namespace cartographer {
 namespace mapping {
 
+// 修改：定义HybridGridIntergrator类。此类的对象用于把多个子图的内容合并成单个地图。
 void HybridGridIntergrator::InsertGrid(const HybridGrid &grid,
                                        const transform::Rigid3d &grid_pose)
 {

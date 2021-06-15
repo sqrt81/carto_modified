@@ -99,6 +99,7 @@ std::unique_ptr<transform::Rigid3d> LocalTrajectoryBuilder3D::ScanMatch(
       &pose_observation_in_submap, &summary);
   kCeresScanMatcherCostMetric->Observe(summary.final_cost);
 
+  // 修改：由于我们的场景中，汽车仅在平面内运动（没有上下坡），所以把定位中的z方向坐标（高度）始终设为0
   /** disable z transform **/
   pose_observation_in_submap = {
       {pose_observation_in_submap.translation().x(),
@@ -349,6 +350,7 @@ LocalTrajectoryBuilder3D::AddAccumulatedRangeData(
 
 void LocalTrajectoryBuilder3D::AddOdometryData(
     const sensor::OdometryData& odometry_data) {
+    // 修改：由于我们实际上不会用到里程计信息，所以我们用一个假的里程计信息来“欺骗”这个算法。
 //  if (extrapolator_ == nullptr) {
 //    // Until we've initialized the extrapolator we cannot add odometry data.
 //    LOG(INFO) << "Extrapolator not yet initialized.";

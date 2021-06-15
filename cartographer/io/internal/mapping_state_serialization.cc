@@ -233,6 +233,7 @@ void WritePbStream(
   SerializeLandmarkNodes(pose_graph.GetLandmarkNodes(), writer);
 }
 
+// 修改：增加一个记录子图的函数（提供给第三方程序的接口）
 void WriteMaps(
         const MapById<SubmapId, PoseGraphInterface::SubmapData> submaps,
         ProtoStreamWriterInterface* const writer)

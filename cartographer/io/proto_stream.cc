@@ -96,6 +96,7 @@ bool ProtoStreamReader::ReadProto(google::protobuf::Message* proto) {
   if(!Read(&decompressed_data))
       return false;
 
+  // 修改：允许protobuf解码大文件
   // the file is too large, so it needs some modification
   // to bypass the length checking issue
   ::google::protobuf::io::CodedInputStream decoder(

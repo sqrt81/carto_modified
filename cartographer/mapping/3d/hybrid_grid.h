@@ -35,6 +35,7 @@
 namespace cartographer {
 namespace mapping {
 
+// 修改：允许三维栅格地图在三个维度上独立地增长
 // Converts an 'index' with each dimension from 0 to 2^'bits' - 1 to a flat
 // z-major index.
 inline int ToFlatIndex(const Eigen::Array3i& index, const int bits) {
